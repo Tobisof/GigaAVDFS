@@ -33,11 +33,11 @@ resource "azurerm_windows_virtual_machine" "session_host" {
   network_interface_ids = [
     azurerm_network_interface.session_host.id
   ]
-  provision_vm_agent       = true
-  enable_automatic_updates = true
-  timezone                 = "Central European Standard Time"
-  computer_name            = local.vm_name
-  license_type             = "Windows_Client"
+  provision_vm_agent        = true
+  automatic_updates_enabled = true
+  timezone                  = "Central European Standard Time"
+  computer_name             = local.vm_name
+  license_type              = "Windows_Client"
 
   identity {
     type = "SystemAssigned"

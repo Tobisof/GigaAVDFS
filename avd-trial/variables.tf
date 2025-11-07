@@ -17,7 +17,7 @@ variable "location" {
 variable "project_name" {
   description = "Prefiks wykorzystywany w nazwach zasobów."
   type        = string
-  default     = "avd-demo"
+  default     = "gigaavdfs"
 }
 
 variable "admin_username" {

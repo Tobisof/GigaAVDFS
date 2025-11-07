@@ -7,7 +7,7 @@ resource "azurerm_role_assignment" "avd_users_app_group" {
 }
 
 resource "azurerm_role_assignment" "fslogix_share" {
-  scope                = azurerm_storage_share.profiles.resource_manager_id
+  scope                = azurerm_storage_share.profiles.id
   role_definition_name = "Storage File Data SMB Share Contributor"
   principal_id         = var.avd_users_group_object_id
 

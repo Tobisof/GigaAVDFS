@@ -10,16 +10,18 @@ resource "azurerm_virtual_desktop_host_pool" "pooled" {
   start_vm_on_connect      = true
   tags                     = local.common_tags
 }
+# Dodaj "teraz" i przesunięcie o 48h (wymaga providera time – już masz)
+resource "time_static" "now" {}
 
 resource "time_offset" "registration_expiration" {
+  base_rfc3339 = time_static.now.rfc3339
   offset_hours = 48
 }
 
 resource "azurerm_virtual_desktop_host_pool_registration_info" "registration" {
-  host_pool_id    = azurerm_virtual_desktop_host_pool.pooled.id
-  expiration_time = time_offset.registration_expiration.rfc3339
+  hostpool_id     = azurerm_virtual_desktop_host_pool.pooled.id # <- bez podkreślnika po "host"
+  expiration_date = time_offset.registration_expiration.rfc3339 # <- poprawne pole
 }
-
 resource "azurerm_virtual_desktop_workspace" "workspace" {
   name                = local.workspace_name
   resource_group_name = azurerm_resource_group.core.name

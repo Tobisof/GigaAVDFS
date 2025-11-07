@@ -13,7 +13,11 @@ locals {
   files_share_name     = "profiles"
   vnet_address_space   = ["10.10.0.0/16"]
   subnet_address_space = "10.10.1.0/24"
-  storage_account_base = substr(regexreplace(lower(var.project_name), "[^a-z0-9]", ""), 0, 11)
+  storage_account_base = substr(
+    replace(replace(replace(lower(var.project_name), "-", ""), "_", ""), " ", ""),
+    0,
+    11
+  )
 
   tags_base = {
     Project     = var.project_name
