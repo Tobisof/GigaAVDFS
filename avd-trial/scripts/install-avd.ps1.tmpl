@@ -1,0 +1,71 @@
+param(
+    [string]$FslogixUrl,
+    [string]$AvdAgentUrl,
+    [string]$AvdBootloaderUrl,
+    [string]$FslogixShare,
+    [string]$RegistrationToken
+)
+
+$ErrorActionPreference = "Stop"
+$ProgressPreference = "SilentlyContinue"
+$workDir = "C:\\Temp\\AvdSetup"
+New-Item -ItemType Directory -Path $workDir -Force | Out-Null
+
+function Install-PackageFromUrl {
+    param (
+        [string]$Url,
+        [string]$Name,
+        [string]$AdditionalArguments = ""
+    )
+
+    if ([string]::IsNullOrWhiteSpace($Url)) {
+        throw "URL for $Name is empty. Update terraform.tfvars with a valid download link."
+    }
+
+    $uri = [System.Uri]$Url
+    $extension = [System.IO.Path]::GetExtension($uri.AbsolutePath)
+    if ([string]::IsNullOrWhiteSpace($extension)) {
+        $extension = ".msi"
+    }
+
+    $destination = Join-Path $workDir ("$Name" + $extension)
+    Invoke-WebRequest -Uri $Url -OutFile $destination
+
+    if ($extension -ieq ".zip") {
+        $extractPath = Join-Path $workDir ("$Name-unpacked")
+        Expand-Archive -Path $destination -DestinationPath $extractPath -Force
+        $installer = Get-ChildItem -Path $extractPath -Include *.msi, *.exe -Recurse | Select-Object -First 1
+        if (-not $installer) {
+            throw "Installer not found inside archive $Name"
+        }
+        $destination = $installer.FullName
+        $extension = $installer.Extension
+    }
+
+    if ($extension -ieq ".exe") {
+        $arguments = "/install /quiet /norestart $AdditionalArguments"
+        Start-Process -FilePath $destination -ArgumentList $arguments -Wait
+    } else {
+        $arguments = "/i `"$destination`" /quiet /qn /norestart $AdditionalArguments"
+        Start-Process -FilePath "msiexec.exe" -ArgumentList $arguments -Wait
+    }
+}
+
+Write-Host "Installing FSLogix..."
+Install-PackageFromUrl -Url $FslogixUrl -Name "fslogix"
+
+$fslogixRegPath = "HKLM:\\SOFTWARE\\FSLogix\\Profiles"
+New-Item -Path $fslogixRegPath -Force | Out-Null
+Set-ItemProperty -Path $fslogixRegPath -Name "Enabled" -Value 1 -Type DWord
+Set-ItemProperty -Path $fslogixRegPath -Name "DeleteLocalProfileWhenVHDShouldApply" -Value 1 -Type DWord
+Set-ItemProperty -Path $fslogixRegPath -Name "FlipFlopProfileDirectoryName" -Value 1 -Type DWord
+New-ItemProperty -Path $fslogixRegPath -Name "VHDLocations" -Value $FslogixShare -PropertyType MultiString -Force
+
+Write-Host "Installing AVD Agent..."
+Install-PackageFromUrl -Url $AvdAgentUrl -Name "avd-agent" -AdditionalArguments "REGISTRATIONTOKEN=$RegistrationToken"
+
+Write-Host "Installing AVD Bootloader..."
+Install-PackageFromUrl -Url $AvdBootloaderUrl -Name "avd-bootloader"
+
+Write-Host "Scheduling restart to finalize provisioning..."
+Start-Process -FilePath "shutdown.exe" -ArgumentList "/r /t 60 /c 'AVD provisioning restart'" | Out-Null
